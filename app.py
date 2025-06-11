@@ -2,91 +2,103 @@ import streamlit as st
 import os
 import cv2
 import numpy as np
-from sklearn.cluster import DBSCAN
+import matplotlib.pyplot as plt
 from insightface.app import FaceAnalysis
+from sklearn.cluster import DBSCAN
 from huggingface_hub import snapshot_download
-import tempfile
-import base64
-import zipfile
 from io import BytesIO
+import zipfile
+import tempfile
 
-# Setup
-st.set_page_config(page_title="Face Clustering", layout="wide")
-st.title("📸 Face Clustering with AuraFace + DBSCAN")
+# Setup Streamlit
+st.set_page_config(page_title="Face Clustering App", layout="wide")
+st.title("🧠 Face Clustering App")
+st.markdown("Upload beberapa foto, lalu lihat hasil clustering wajah!")
 
+# ==== Inisialisasi model di luar ====
 @st.cache_resource
-def load_model():
-    snapshot_download("fal/AuraFace-v1", local_dir="models/auraface")
-    app = FaceAnalysis(name="auraface", providers=["CUDAExecutionProvider", "CPUExecutionProvider"], root=".")
-    app.prepare(ctx_id=0)
-    return app
+def load_face_app():
+    model_dir = "models/auraface"
+    if not os.path.exists(model_dir):
+        snapshot_download("fal/AuraFace-v1", local_dir=model_dir)
 
-face_app = load_model()
+    face_app = FaceAnalysis(name="auraface", root=".", providers=["CPUExecutionProvider"])
+    face_app.prepare(ctx_id=0)
+    return face_app
 
-st.markdown("""
-Upload beberapa foto wajah, dan aplikasi akan otomatis mendeteksi, mengelompokkan wajah serupa, serta menampilkan hasil klaster dengan pilihan unduh gambar asli.
-""")
+face_app = load_face_app()
+# ====================================
 
-uploaded_files = st.file_uploader("📂 Unggah gambar", type=["jpg", "jpeg", "png"], accept_multiple_files=True)
+# Upload gambar
+uploaded_files = st.file_uploader("Upload beberapa gambar wajah", type=["jpg", "jpeg", "png"], accept_multiple_files=True)
 
 if uploaded_files:
-    embeddings, face_images, image_sources = [], [], []
+    embeddings, image_sources, face_images = [], [], []
 
-    with st.spinner("🔍 Memproses gambar..."):
+    st.info("📸 Mendeteksi wajah...")
+    progress = st.progress(0)
+
+    for idx, file in enumerate(uploaded_files):
+        bytes_data = file.read()
+        np_img = np.frombuffer(bytes_data, np.uint8)
+        input_image = cv2.imdecode(np_img, cv2.IMREAD_COLOR)
+
+        cv2_image = cv2.cvtColor(input_image, cv2.COLOR_BGR2RGB)
+        faces = face_app.get(cv2_image)
+        for face in faces:
+            x1, y1, x2, y2 = [int(i) for i in face.bbox]
+            x1, y1 = max(0, x1), max(0, y1)
+            x2, y2 = min(input_image.shape[1], x2), min(input_image.shape[0], y2)
+            if x2 > x1 and y2 > y1:
+                cropped = input_image[y1:y2, x1:x2]
+                face_images.append(cropped)
+                embeddings.append(face.normed_embedding)
+                image_sources.append(file.name)
+
+        progress.progress((idx + 1) / len(uploaded_files))
+
+    if not embeddings:
+        st.error("❌ Tidak ada wajah terdeteksi.")
+        st.stop()
+
+    st.success(f"✅ Total wajah terdeteksi: {len(embeddings)}")
+
+    # Clustering
+    st.info("🔗 Melakukan clustering wajah...")
+    X = np.array(embeddings)
+    db = DBSCAN(eps=0.5, min_samples=2, metric='cosine').fit(X)
+    labels = db.labels_
+
+    # Buat dictionary per cluster
+    clusters = {}
+    for face_img, label in zip(face_images, labels):
+        clusters.setdefault(label, []).append(face_img)
+
+    # Dropdown UI
+    cluster_options = sorted(clusters.keys())
+    selected_cluster = st.selectbox("🧩 Pilih Cluster", cluster_options)
+
+    st.subheader(f"👥 Wajah dalam Cluster {selected_cluster}")
+    cols = st.columns(5)
+    for idx, img in enumerate(clusters[selected_cluster]):
+        with cols[idx % 5]:
+            st.image(cv2.cvtColor(img, cv2.COLOR_BGR2RGB), use_column_width=True)
+
+    # Download ZIP per cluster
+    if st.button("📦 Download Cluster sebagai ZIP"):
         with tempfile.TemporaryDirectory() as tmpdir:
-            for file in uploaded_files:
-                img_bytes = file.read()
-                np_img = np.frombuffer(img_bytes, np.uint8)
-                img = cv2.imdecode(np_img, cv2.IMREAD_COLOR)
-                if img is None:
-                    continue
-                filename = file.name
+            zip_path = os.path.join(tmpdir, f"cluster_{selected_cluster}.zip")
+            with zipfile.ZipFile(zip_path, 'w') as zipf:
+                for idx, img in enumerate(clusters[selected_cluster]):
+                    filename = f"face_{idx}.jpg"
+                    file_path = os.path.join(tmpdir, filename)
+                    cv2.imwrite(file_path, img)
+                    zipf.write(file_path, arcname=filename)
 
-                faces = face_app.get(cv2.cvtColor(img, cv2.COLOR_BGR2RGB))
-                for face in faces:
-                    x1, y1, x2, y2 = map(int, face.bbox)
-                    h, w, _ = img.shape
-                    x1, y1, x2, y2 = max(0, x1), max(0, y1), min(w, x2), min(h, y2)
-
-                    if x2 > x1 and y2 > y1:
-                        cropped_face = img[y1:y2, x1:x2]
-                        face_images.append(cropped_face)
-                        embeddings.append(face.normed_embedding)
-                        image_sources.append((filename, img_bytes))
-
-    if embeddings:
-        st.success(f"✅ {len(embeddings)} wajah terdeteksi.")
-
-        X = np.array(embeddings)
-        db = DBSCAN(eps=0.5, min_samples=2, metric='cosine').fit(X)
-        labels = db.labels_
-
-        clusters = {}
-        for img, label, (filename, img_bytes) in zip(face_images, labels, image_sources):
-            clusters.setdefault(label, []).append((img, filename, img_bytes))
-
-        zip_buffer = BytesIO()
-        with zipfile.ZipFile(zip_buffer, "a") as zip_file:
-            for label, faces in clusters.items():
-                for i, (_, filename, img_bytes) in enumerate(faces):
-                    zip_file.writestr(f"cluster_{label}/{i}_{filename}", img_bytes)
-
-        st.download_button(
-            label="📦 Unduh Semua sebagai ZIP",
-            data=zip_buffer.getvalue(),
-            file_name="face_clusters.zip",
-            mime="application/zip"
-        )
-
-        for label, faces in clusters.items():
-            st.markdown(f"### 🧩 Cluster {label} - {len(faces)} wajah")
-            cols = st.columns(min(len(faces), 5))
-
-            for i, (img, filename, img_bytes) in enumerate(faces):
-                with cols[i % len(cols)]:
-                    st.image(cv2.cvtColor(img, cv2.COLOR_BGR2RGB), caption=filename, use_column_width=True)
-                    b64 = base64.b64encode(img_bytes).decode()
-                    href = f'<a href="data:file/jpg;base64,{b64}" download="{filename}">⬇️ Unduh Asli</a>'
-                    st.markdown(href, unsafe_allow_html=True)
-    else:
-        st.warning("⚠️ Tidak ada wajah terdeteksi.")
+            with open(zip_path, "rb") as f:
+                st.download_button(
+                    label="⬇️ Klik untuk download ZIP",
+                    data=f,
+                    file_name=f"cluster_{selected_cluster}.zip",
+                    mime="application/zip"
+                )
