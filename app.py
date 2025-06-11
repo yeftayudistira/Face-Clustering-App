@@ -258,19 +258,29 @@ st.markdown("""
 # ==== Inisialisasi model di luar ====
 @st.cache_resource
 def load_face_app():
-    snapshot_download(
-        "fal/AuraFace-v1",
-        local_dir="models/auraface",
-    )
-    face_app = FaceAnalysis(
-        name="auraface",
-        providers=["CPUExecutionProvider"],
-        root=".",
-    )
-    face_app.prepare(ctx_id=0)
-    return face_app
+    try:
+        snapshot_download(
+            "fal/AuraFace-v1",
+            local_dir="models/auraface",
+        )
+        face_app = FaceAnalysis(
+            name="auraface",
+            providers=["CPUExecutionProvider"],
+            root=".",
+        )
+        face_app.prepare(ctx_id=0)
+        return face_app
+    except Exception as e:
+        st.error(f"Error loading face analysis model: {str(e)}")
+        return None
 
+# Initialize face app
 face_app = load_face_app()
+
+if face_app is None:
+    st.error("❌ Failed to load face analysis model. Please check your internet connection and try again.")
+    st.stop()
+
 # ====================================
 
 # Upload section
@@ -295,26 +305,36 @@ if uploaded_files:
         status_text = st.empty()
         
         for idx, file in enumerate(uploaded_files):
-            status_text.text(f"Processing {file.name}...")
-            
-            bytes_data = file.read()
-            np_img = np.frombuffer(bytes_data, np.uint8)
-            input_image = cv2.imdecode(np_img, cv2.IMREAD_COLOR)
-            cv2_image = cv2.cvtColor(input_image, cv2.COLOR_BGR2RGB)
-            faces = face_app.get(cv2_image)
-            
-            for face in faces:
-                x1, y1, x2, y2 = [int(i) for i in face.bbox]
-                x1, y1 = max(0, x1), max(0, y1)
-                x2, y2 = min(input_image.shape[1], x2), min(input_image.shape[0], y2)
+            try:
+                status_text.text(f"Processing {file.name}...")
                 
-                if x2 > x1 and y2 > y1:
-                    cropped = input_image[y1:y2, x1:x2]
-                    face_images.append(cropped)
-                    embeddings.append(face.normed_embedding)
-                    image_sources.append(file.name)
-            
-            progress_bar.progress((idx + 1) / len(uploaded_files))
+                bytes_data = file.read()
+                np_img = np.frombuffer(bytes_data, np.uint8)
+                input_image = cv2.imdecode(np_img, cv2.IMREAD_COLOR)
+                
+                if input_image is None:
+                    st.warning(f"⚠️ Could not read image: {file.name}")
+                    continue
+                    
+                cv2_image = cv2.cvtColor(input_image, cv2.COLOR_BGR2RGB)
+                faces = face_app.get(cv2_image)
+                
+                for face in faces:
+                    x1, y1, x2, y2 = [int(i) for i in face.bbox]
+                    x1, y1 = max(0, x1), max(0, y1)
+                    x2, y2 = min(input_image.shape[1], x2), min(input_image.shape[0], y2)
+                    
+                    if x2 > x1 and y2 > y1:
+                        cropped = input_image[y1:y2, x1:x2]
+                        face_images.append(cropped)
+                        embeddings.append(face.normed_embedding)
+                        image_sources.append(file.name)
+                
+                progress_bar.progress((idx + 1) / len(uploaded_files))
+                
+            except Exception as e:
+                st.warning(f"⚠️ Error processing {file.name}: {str(e)}")
+                continue
         
         progress_bar.empty()
         status_text.empty()
@@ -325,14 +345,18 @@ if uploaded_files:
     
     # Clustering
     with st.spinner("🧠 Grouping similar faces..."):
-        X = np.array(embeddings)
-        db = DBSCAN(eps=0.5, min_samples=2, metric='cosine').fit(X)
-        labels = db.labels_
-        
-        # Buat dictionary per cluster
-        clusters = {}
-        for face_img, label in zip(face_images, labels):
-            clusters.setdefault(label, []).append(face_img)
+        try:
+            X = np.array(embeddings)
+            db = DBSCAN(eps=0.5, min_samples=2, metric='cosine').fit(X)
+            labels = db.labels_
+            
+            # Buat dictionary per cluster
+            clusters = {}
+            for face_img, label in zip(face_images, labels):
+                clusters.setdefault(label, []).append(face_img)
+        except Exception as e:
+            st.error(f"❌ Error during clustering: {str(e)}")
+            st.stop()
     
     # Success message
     unique_clusters = len([k for k in clusters.keys() if k != -1])
@@ -341,7 +365,7 @@ if uploaded_files:
     
     # Cluster section
     st.markdown('<div class="cluster-section">', unsafe_allow_html=True)
-    
+        
     # Cluster dropdown
     cluster_options = sorted(clusters.keys())
     cluster_names = []
@@ -350,7 +374,7 @@ if uploaded_files:
             cluster_names.append(f"🔍 Unmatched faces ({len(clusters[cluster_id])} faces)")
         else:
             cluster_names.append(f"👥 Person {cluster_id + 1} ({len(clusters[cluster_id])} faces)")
-    
+        
     st.markdown("### 🎯 Select a Face Group")
     selected_index = st.selectbox(
         "Choose which group of faces to view:",
@@ -358,9 +382,9 @@ if uploaded_files:
         format_func=lambda x: cluster_names[x],
         help="Each group contains similar faces detected across your photos"
     )
-    
+        
     selected_cluster = cluster_options[selected_index]
-    
+        
     # Cluster header
     st.markdown(f"""
     <div class="cluster-header">
@@ -368,46 +392,54 @@ if uploaded_files:
         <div class="cluster-count">{len(clusters[selected_cluster])} photos</div>
     </div>
     """, unsafe_allow_html=True)
-    
+        
     # Display faces in a responsive grid
     faces_in_cluster = clusters[selected_cluster]
-    
+        
     # Create responsive columns
     cols_per_row = 6
     for i in range(0, len(faces_in_cluster), cols_per_row):
         cols = st.columns(cols_per_row)
         for j, img in enumerate(faces_in_cluster[i:i+cols_per_row]):
             with cols[j]:
-                st.image(
-                    cv2.cvtColor(img, cv2.COLOR_BGR2RGB), 
-                    use_column_width=True,
-                    caption=f"Face {i+j+1}"
-                )
-    
+                try:
+                    st.image(
+                        cv2.cvtColor(img, cv2.COLOR_BGR2RGB), 
+                        use_column_width=True,
+                        caption=f"Face {i+j+1}"
+                    )
+                except Exception as e:
+                    st.error(f"Error displaying image: {str(e)}")
+        
     st.markdown('</div>', unsafe_allow_html=True)
-    
+        
     # Download section
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         if st.button("📦 Download This Face Group"):
             with st.spinner("📁 Preparing download..."):
-                with tempfile.TemporaryDirectory() as tmpdir:
-                    zip_path = os.path.join(tmpdir, f"face_group_{selected_cluster}.zip")
-                    with zipfile.ZipFile(zip_path, 'w') as zipf:
-                        for idx, img in enumerate(clusters[selected_cluster]):
-                            filename = f"face_{idx+1}.jpg"
-                            file_path = os.path.join(tmpdir, filename)
-                            cv2.imwrite(file_path, img)
-                            zipf.write(file_path, arcname=filename)
-                    
-                    with open(zip_path, "rb") as f:
+                try:
+                    with tempfile.TemporaryDirectory() as tmpdir:
+                        zip_path = os.path.join(tmpdir, f"face_group_{selected_cluster}.zip")
+                        with zipfile.ZipFile(zip_path, 'w') as zipf:
+                            for idx, img in enumerate(clusters[selected_cluster]):
+                                filename = f"face_{idx+1}.jpg"
+                                file_path = os.path.join(tmpdir, filename)
+                                cv2.imwrite(file_path, img)
+                                zipf.write(file_path, arcname=filename)
+                        
+                        with open(zip_path, "rb") as f:
+                            zip_data = f.read()
+                            
                         st.download_button(
                             label="⬇️ Download ZIP File",
-                            data=f,
+                            data=zip_data,
                             file_name=f"face_group_{selected_cluster+1 if selected_cluster != -1 else 'unmatched'}.zip",
                             mime="application/zip",
                             use_container_width=True
                         )
+                except Exception as e:
+                    st.error(f"❌ Error creating download: {str(e)}")
 
 else:
     # Welcome message when no files uploaded
