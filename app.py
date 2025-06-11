@@ -23,33 +23,30 @@ st.markdown("""
     /* Main container styling */
     .main > div {
         padding: 2rem 1rem;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: #ffffff;
         min-height: 100vh;
     }
     
     /* Header styling */
     .main-header {
-        background: white;
+        background: linear-gradient(135deg, #4285f4 0%, #34a853 100%);
+        color: white;
         padding: 2rem;
         border-radius: 20px;
         box-shadow: 0 8px 32px rgba(0,0,0,0.1);
         margin-bottom: 2rem;
         text-align: center;
-        backdrop-filter: blur(10px);
-        border: 1px solid rgba(255,255,255,0.2);
     }
     
     .main-title {
         font-size: 2.5rem;
         font-weight: 700;
-        background: linear-gradient(45deg, #4285f4, #ea4335, #fbbc05, #34a853);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
+        color: white;
         margin-bottom: 0.5rem;
     }
     
     .main-subtitle {
-        color: #5f6368;
+        color: rgba(255,255,255,0.9);
         font-size: 1.1rem;
         margin-bottom: 0;
     }
@@ -61,7 +58,7 @@ st.markdown("""
         border-radius: 20px;
         box-shadow: 0 4px 20px rgba(0,0,0,0.08);
         margin-bottom: 2rem;
-        border: 2px dashed #e0e0e0;
+        border: 2px solid #f0f0f0;
         transition: all 0.3s ease;
     }
     
