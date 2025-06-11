@@ -323,6 +323,10 @@ if uploaded_files and need_processing:
                 status_text.text(f"Processing {file.name}...")
                 
                 bytes_data = file.read()
+                if len(bytes_data) == 0:
+                    st.warning(f"⚠️ Empty file: {file.name}")
+                    continue
+                    
                 np_img = np.frombuffer(bytes_data, np.uint8)
                 input_image = cv2.imdecode(np_img, cv2.IMREAD_COLOR)
                 
@@ -334,15 +338,19 @@ if uploaded_files and need_processing:
                 faces = face_app.get(cv2_image)
                 
                 for face in faces:
-                    x1, y1, x2, y2 = [int(i) for i in face.bbox]
-                    x1, y1 = max(0, x1), max(0, y1)
-                    x2, y2 = min(input_image.shape[1], x2), min(input_image.shape[0], y2)
-                    
-                    if x2 > x1 and y2 > y1:
-                        cropped = input_image[y1:y2, x1:x2]
-                        face_images.append(cropped)
-                        embeddings.append(face.normed_embedding)
-                        image_sources.append(file.name)
+                    try:
+                        x1, y1, x2, y2 = [int(i) for i in face.bbox]
+                        x1, y1 = max(0, x1), max(0, y1)
+                        x2, y2 = min(input_image.shape[1], x2), min(input_image.shape[0], y2)
+                        
+                        if x2 > x1 and y2 > y1:
+                            cropped = input_image[y1:y2, x1:x2]
+                            face_images.append(cropped)
+                            embeddings.append(face.normed_embedding)
+                            image_sources.append(file.name)
+                    except Exception as face_error:
+                        st.warning(f"⚠️ Error processing face in {file.name}: {str(face_error)}")
+                        continue
                 
                 progress_bar.progress((idx + 1) / len(uploaded_files))
                 
@@ -487,7 +495,12 @@ if st.session_state.clusters is not None:
     col1, col2, col3 = st.columns([1, 1, 1])
     with col2:
         if st.button("🔄 Process New Photos", type="secondary", use_container_width=True):
+            # Clear session state
             st.session_state.clusters = None
             st.session_state.processed_files = []
             st.session_state.total_faces = 0
-            st.experimental_rerun()
+            # Use the correct rerun function based on Streamlit version
+            try:
+                st.rerun()  # For newer versions of Streamlit
+            except AttributeError:
+                st.experimental_rerun()  # Fallback for older versions
