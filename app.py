@@ -18,10 +18,15 @@ st.markdown("Upload beberapa foto, lalu lihat hasil clustering wajah!")
 # ==== Inisialisasi model di luar ====
 @st.cache_resource
 def load_face_app():
-    model_dir = "models/auraface"
-    if not os.path.exists(model_dir):
-        snapshot_download("fal/AuraFace-v1", local_dir=model_dir)
-    face_app = FaceAnalysis(name="auraface", root=".", providers=["CPUExecutionProvider"])
+    snapshot_download(
+        "fal/AuraFace-v1",
+        local_dir="models/auraface",
+    )
+    face_app = FaceAnalysis(
+        name="auraface",
+        providers=["CPUExecutionProvider"],
+        root=".",
+    )
     face_app.prepare(ctx_id=0)
     return face_app
 
