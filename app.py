@@ -251,7 +251,7 @@ st.markdown("""
 st.markdown("""
 <div class="main-header">
     <div class="main-title">📸 Face Clustering</div>
-    <div class="main-subtitle">Organize your photos by faces, just like Google Photos</div>
+    <div class="main-subtitle">Organize your photos by faces</div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -436,7 +436,7 @@ if uploaded_files and st.session_state.clusters is not None:
                 try:
                     st.image(
                         cv2.cvtColor(img, cv2.COLOR_BGR2RGB), 
-                        use_column_width=True,
+                        use_container_width=True,
                         caption=f"Face {i+j+1}"
                     )
                 except Exception as e:
@@ -484,8 +484,6 @@ else:
     <div style="text-align: center; padding: 3rem; color: #5f6368;">
         <h3>🚀 Get Started</h3>
         <p>Upload your photos above to automatically detect and group faces using AI</p>
-        <p><strong>Features:</strong></p>
-        <p>✨ Automatic face detection • 🧠 Smart grouping • 📱 Mobile-friendly • 📦 Easy downloads</p>
     </div>
     """, unsafe_allow_html=True)
     
@@ -493,14 +491,4 @@ else:
 if st.session_state.clusters is not None:
     st.markdown("<br><br>", unsafe_allow_html=True)  # Add spacing
     col1, col2, col3 = st.columns([1, 1, 1])
-    with col2:
-        if st.button("🔄 Process New Photos", type="secondary", use_container_width=True):
-            # Clear session state
-            st.session_state.clusters = None
-            st.session_state.processed_files = []
-            st.session_state.total_faces = 0
-            # Use the correct rerun function based on Streamlit version
-            try:
-                st.rerun()  # For newer versions of Streamlit
-            except AttributeError:
-                st.experimental_rerun()  # Fallback for older versions
+   
