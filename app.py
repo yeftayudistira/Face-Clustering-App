@@ -436,10 +436,11 @@ if uploaded_files and st.session_state.clusters is not None:
         
     st.markdown('</div>', unsafe_allow_html=True)
         
-    # Download section
-    col1, col2, col3 = st.columns([1, 2, 1])
+    # Download section - Centered
+    st.markdown("<br>", unsafe_allow_html=True)  # Add some spacing
+    col1, col2, col3 = st.columns([1, 1, 1])
     with col2:
-        if st.button("📦 Download This Face Group"):
+        if st.button("📦 Download This Face Group", use_container_width=True):
             with st.spinner("📁 Preparing download..."):
                 try:
                     with tempfile.TemporaryDirectory() as tmpdir:
@@ -453,7 +454,9 @@ if uploaded_files and st.session_state.clusters is not None:
                         
                         with open(zip_path, "rb") as f:
                             zip_data = f.read()
-                            
+                    
+                    # Show download button in center column
+                    with col2:        
                         st.download_button(
                             label="⬇️ Download ZIP File",
                             data=zip_data,
@@ -478,11 +481,12 @@ else:
     </div>
     """, unsafe_allow_html=True)
     
-# Add clear button to reset session state
+# Add clear button to reset session state - Better centered
 if st.session_state.clusters is not None:
-    col1, col2, col3 = st.columns([1, 2, 1])
+    st.markdown("<br><br>", unsafe_allow_html=True)  # Add spacing
+    col1, col2, col3 = st.columns([1, 1, 1])
     with col2:
-        if st.button("🔄 Process New Photos", use_container_width=True):
+        if st.button("🔄 Process New Photos", type="secondary", use_container_width=True):
             st.session_state.clusters = None
             st.session_state.processed_files = []
             st.session_state.total_faces = 0
