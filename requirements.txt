@@ -1,7 +1,7 @@
 streamlit
 opencv-python
-scikit-learn
 numpy
+scikit-learn
 matplotlib
 huggingface-hub
 insightface
