@@ -255,7 +255,7 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# ==== Inisialisasi model di luar ====
+# ==== Inisialisasi model dan session state ====
 @st.cache_resource
 def load_face_app():
     try:
@@ -281,6 +281,14 @@ if face_app is None:
     st.error("❌ Failed to load face analysis model. Please check your internet connection and try again.")
     st.stop()
 
+# Initialize session state
+if 'clusters' not in st.session_state:
+    st.session_state.clusters = None
+if 'processed_files' not in st.session_state:
+    st.session_state.processed_files = []
+if 'total_faces' not in st.session_state:
+    st.session_state.total_faces = 0
+
 # ====================================
 
 # Upload section
@@ -296,7 +304,13 @@ uploaded_files = st.file_uploader(
 )
 st.markdown('</div>', unsafe_allow_html=True)
 
-if uploaded_files:
+# Check if we need to process new files
+current_file_names = [file.name for file in uploaded_files] if uploaded_files else []
+need_processing = (uploaded_files and 
+                  (st.session_state.clusters is None or 
+                   set(current_file_names) != set(st.session_state.processed_files)))
+
+if uploaded_files and need_processing:
     # Processing with modern loading
     with st.spinner("🔍 Analyzing faces in your photos..."):
         embeddings, image_sources, face_images = [], [], []
@@ -350,18 +364,27 @@ if uploaded_files:
             db = DBSCAN(eps=0.5, min_samples=2, metric='cosine').fit(X)
             labels = db.labels_
             
-            # Buat dictionary per cluster
+            # Buat dictionary per cluster dan simpan ke session state
             clusters = {}
             for face_img, label in zip(face_images, labels):
                 clusters.setdefault(label, []).append(face_img)
+            
+            # Save to session state
+            st.session_state.clusters = clusters
+            st.session_state.processed_files = current_file_names
+            st.session_state.total_faces = len(embeddings)
+            
         except Exception as e:
             st.error(f"❌ Error during clustering: {str(e)}")
             st.stop()
+
+# Display results if we have processed data
+if uploaded_files and st.session_state.clusters is not None:
+    clusters = st.session_state.clusters
     
     # Success message
     unique_clusters = len([k for k in clusters.keys() if k != -1])
-    total_faces = len(embeddings)
-    st.success(f"✨ Found {total_faces} faces organized into {unique_clusters} groups!")
+    st.success(f"✨ Found {st.session_state.total_faces} faces organized into {unique_clusters} groups!")
     
     # Cluster section
     st.markdown('<div class="cluster-section">', unsafe_allow_html=True)
@@ -441,6 +464,9 @@ if uploaded_files:
                 except Exception as e:
                     st.error(f"❌ Error creating download: {str(e)}")
 
+elif uploaded_files and st.session_state.clusters is None:
+    st.info("⏳ Please wait while we process your photos...")
+
 else:
     # Welcome message when no files uploaded
     st.markdown("""
@@ -451,3 +477,13 @@ else:
         <p>✨ Automatic face detection • 🧠 Smart grouping • 📱 Mobile-friendly • 📦 Easy downloads</p>
     </div>
     """, unsafe_allow_html=True)
+    
+# Add clear button to reset session state
+if st.session_state.clusters is not None:
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        if st.button("🔄 Process New Photos", use_container_width=True):
+            st.session_state.clusters = None
+            st.session_state.processed_files = []
+            st.session_state.total_faces = 0
+            st.experimental_rerun()
