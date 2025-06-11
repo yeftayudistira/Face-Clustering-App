@@ -339,75 +339,75 @@ if uploaded_files:
     total_faces = len(embeddings)
     st.success(f"✨ Found {total_faces} faces organized into {unique_clusters} groups!")
     
-# Cluster section
-st.markdown('<div class="cluster-section">', unsafe_allow_html=True)
+    # Cluster section
+    st.markdown('<div class="cluster-section">', unsafe_allow_html=True)
     
-# Cluster dropdown
-cluster_options = sorted(clusters.keys())
-cluster_names = []
-for cluster_id in cluster_options:
-    if cluster_id == -1:
-        cluster_names.append(f"🔍 Unmatched faces ({len(clusters[cluster_id])} faces)")
-    else:
-        cluster_names.append(f"👥 Person {cluster_id + 1} ({len(clusters[cluster_id])} faces)")
+    # Cluster dropdown
+    cluster_options = sorted(clusters.keys())
+    cluster_names = []
+    for cluster_id in cluster_options:
+        if cluster_id == -1:
+            cluster_names.append(f"🔍 Unmatched faces ({len(clusters[cluster_id])} faces)")
+        else:
+            cluster_names.append(f"👥 Person {cluster_id + 1} ({len(clusters[cluster_id])} faces)")
     
-st.markdown("### 🎯 Select a Face Group")
-selected_index = st.selectbox(
-    "Choose which group of faces to view:",
-    range(len(cluster_options)),
-    format_func=lambda x: cluster_names[x],
-    help="Each group contains similar faces detected across your photos"
-)
+    st.markdown("### 🎯 Select a Face Group")
+    selected_index = st.selectbox(
+        "Choose which group of faces to view:",
+        range(len(cluster_options)),
+        format_func=lambda x: cluster_names[x],
+        help="Each group contains similar faces detected across your photos"
+    )
     
-selected_cluster = cluster_options[selected_index]
+    selected_cluster = cluster_options[selected_index]
     
-# Cluster header
-st.markdown(f"""
-<div class="cluster-header">
-    <div class="cluster-title">{cluster_names[selected_index]}</div>
-    <div class="cluster-count">{len(clusters[selected_cluster])} photos</div>
-</div>
-""", unsafe_allow_html=True)
+    # Cluster header
+    st.markdown(f"""
+    <div class="cluster-header">
+        <div class="cluster-title">{cluster_names[selected_index]}</div>
+        <div class="cluster-count">{len(clusters[selected_cluster])} photos</div>
+    </div>
+    """, unsafe_allow_html=True)
     
-# Display faces in a responsive grid
-faces_in_cluster = clusters[selected_cluster]
+    # Display faces in a responsive grid
+    faces_in_cluster = clusters[selected_cluster]
     
-# Create responsive columns
-cols_per_row = 6
-for i in range(0, len(faces_in_cluster), cols_per_row):
-    cols = st.columns(cols_per_row)
-    for j, img in enumerate(faces_in_cluster[i:i+cols_per_row]):
-        with cols[j]:
-            st.image(
-                cv2.cvtColor(img, cv2.COLOR_BGR2RGB), 
-                use_column_width=True,
-                caption=f"Face {i+j+1}"
-            )
+    # Create responsive columns
+    cols_per_row = 6
+    for i in range(0, len(faces_in_cluster), cols_per_row):
+        cols = st.columns(cols_per_row)
+        for j, img in enumerate(faces_in_cluster[i:i+cols_per_row]):
+            with cols[j]:
+                st.image(
+                    cv2.cvtColor(img, cv2.COLOR_BGR2RGB), 
+                    use_column_width=True,
+                    caption=f"Face {i+j+1}"
+                )
     
-st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
     
-# Download section
-col1, col2, col3 = st.columns([1, 2, 1])
-with col2:
-    if st.button("📦 Download This Face Group"):
-        with st.spinner("📁 Preparing download..."):
-            with tempfile.TemporaryDirectory() as tmpdir:
-                zip_path = os.path.join(tmpdir, f"face_group_{selected_cluster}.zip")
-                with zipfile.ZipFile(zip_path, 'w') as zipf:
-                    for idx, img in enumerate(clusters[selected_cluster]):
-                        filename = f"face_{idx+1}.jpg"
-                        file_path = os.path.join(tmpdir, filename)
-                        cv2.imwrite(file_path, img)
-                        zipf.write(file_path, arcname=filename)
+    # Download section
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        if st.button("📦 Download This Face Group"):
+            with st.spinner("📁 Preparing download..."):
+                with tempfile.TemporaryDirectory() as tmpdir:
+                    zip_path = os.path.join(tmpdir, f"face_group_{selected_cluster}.zip")
+                    with zipfile.ZipFile(zip_path, 'w') as zipf:
+                        for idx, img in enumerate(clusters[selected_cluster]):
+                            filename = f"face_{idx+1}.jpg"
+                            file_path = os.path.join(tmpdir, filename)
+                            cv2.imwrite(file_path, img)
+                            zipf.write(file_path, arcname=filename)
                     
-                with open(zip_path, "rb") as f:
-                    st.download_button(
-                        label="⬇️ Download ZIP File",
-                        data=f,
-                        file_name=f"face_group_{selected_cluster+1 if selected_cluster != -1 else 'unmatched'}.zip",
-                        mime="application/zip",
-                        use_container_width=True
-                    )
+                    with open(zip_path, "rb") as f:
+                        st.download_button(
+                            label="⬇️ Download ZIP File",
+                            data=f,
+                            file_name=f"face_group_{selected_cluster+1 if selected_cluster != -1 else 'unmatched'}.zip",
+                            mime="application/zip",
+                            use_container_width=True
+                        )
 
 else:
     # Welcome message when no files uploaded
