@@ -97,10 +97,10 @@ if uploaded_files:
     st.subheader(f"👥 {cluster_names[selected_index]}")
     
     # Display faces in selected cluster
-    cols = st.columns(5)
+    cols = st.columns(6)
     for idx, img in enumerate(clusters[selected_cluster]):
-        with cols[idx % 5]:
-            st.image(cv2.cvtColor(img, cv2.COLOR_BGR2RGB), use_column_width=True)
+        with cols[idx % 6]:
+            st.image(cv2.cvtColor(img, cv2.COLOR_BGR2RGB), use_container_width=True)
     
     # Download ZIP per cluster
     st.markdown("---")
