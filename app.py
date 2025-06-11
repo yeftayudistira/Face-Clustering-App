@@ -20,17 +20,38 @@ st.set_page_config(
 # Custom CSS untuk tema Google Photos
 st.markdown("""
 <style>
+    /* Force light mode - override system dark mode */
+    .stApp {
+        background-color: #ffffff !important;
+        color: #000000 !important;
+    }
+    
+    /* Override Streamlit's dark mode elements */
+    .stApp > header {
+        background-color: transparent !important;
+    }
+    
+    .stApp [data-testid="stSidebar"] {
+        background-color: #ffffff !important;
+    }
+    
     /* Main container styling */
     .main > div {
         padding: 2rem 1rem;
-        background: #ffffff;
+        background: #ffffff !important;
         min-height: 100vh;
+        color: #000000 !important;
+    }
+    
+    /* Override all text colors */
+    .stMarkdown, .stText, p, div, span, h1, h2, h3, h4, h5, h6 {
+        color: #000000 !important;
     }
     
     /* Header styling */
     .main-header {
         background: linear-gradient(135deg, #4285f4 0%, #34a853 100%);
-        color: white;
+        color: white !important;
         padding: 2rem;
         border-radius: 20px;
         box-shadow: 0 8px 32px rgba(0,0,0,0.1);
@@ -41,25 +62,26 @@ st.markdown("""
     .main-title {
         font-size: 2.5rem;
         font-weight: 700;
-        color: white;
+        color: white !important;
         margin-bottom: 0.5rem;
     }
     
     .main-subtitle {
-        color: rgba(255,255,255,0.9);
+        color: rgba(255,255,255,0.9) !important;
         font-size: 1.1rem;
         margin-bottom: 0;
     }
     
     /* Upload section */
     .upload-section {
-        background: white;
+        background: white !important;
         padding: 2rem;
         border-radius: 20px;
         box-shadow: 0 4px 20px rgba(0,0,0,0.08);
         margin-bottom: 2rem;
         border: 2px solid #f0f0f0;
         transition: all 0.3s ease;
+        color: #000000 !important;
     }
     
     .upload-section:hover {
@@ -69,11 +91,12 @@ st.markdown("""
     
     /* Cluster section */
     .cluster-section {
-        background: white;
+        background: white !important;
         padding: 2rem;
         border-radius: 20px;
         box-shadow: 0 4px 20px rgba(0,0,0,0.08);
         margin-bottom: 2rem;
+        color: #000000 !important;
     }
     
     /* Cluster header */
@@ -89,13 +112,13 @@ st.markdown("""
     .cluster-title {
         font-size: 1.5rem;
         font-weight: 600;
-        color: #202124;
+        color: #202124 !important;
         margin: 0;
     }
     
     .cluster-count {
         background: linear-gradient(45deg, #4285f4, #34a853);
-        color: white;
+        color: white !important;
         padding: 0.5rem 1rem;
         border-radius: 20px;
         font-weight: 500;
@@ -124,9 +147,9 @@ st.markdown("""
     
     /* Button styling */
     .stButton > button {
-        background: linear-gradient(45deg, #4285f4, #34a853);
-        color: white;
-        border: none;
+        background: linear-gradient(45deg, #4285f4, #34a853) !important;
+        color: white !important;
+        border: none !important;
         border-radius: 25px;
         padding: 0.8rem 2rem;
         font-weight: 600;
@@ -138,20 +161,27 @@ st.markdown("""
     .stButton > button:hover {
         transform: translateY(-2px);
         box-shadow: 0 8px 25px rgba(66,133,244,0.4);
+        background: linear-gradient(45deg, #1a73e8, #137333) !important;
     }
     
     /* Selectbox styling */
     .stSelectbox > div > div {
-        background: white;
+        background: white !important;
         border: 2px solid #e0e0e0;
         border-radius: 15px;
         padding: 0.5rem;
         transition: all 0.3s ease;
+        color: #000000 !important;
     }
     
     .stSelectbox > div > div:hover {
         border-color: #4285f4;
         box-shadow: 0 0 0 3px rgba(66,133,244,0.1);
+    }
+    
+    .stSelectbox label {
+        color: #000000 !important;
+        font-weight: 600;
     }
     
     /* File uploader styling */
@@ -160,34 +190,54 @@ st.markdown("""
         border-radius: 15px;
         padding: 2rem;
         text-align: center;
-        background: rgba(66,133,244,0.05);
+        background: rgba(66,133,244,0.05) !important;
         transition: all 0.3s ease;
+        color: #000000 !important;
     }
     
     .stFileUploader > div:hover {
-        background: rgba(66,133,244,0.1);
+        background: rgba(66,133,244,0.1) !important;
         border-color: #1a73e8;
+    }
+    
+    .stFileUploader label {
+        color: #000000 !important;
+        font-weight: 600;
     }
     
     /* Progress styling */
     .stProgress > div > div {
-        background: linear-gradient(45deg, #4285f4, #34a853);
+        background: linear-gradient(45deg, #4285f4, #34a853) !important;
         border-radius: 10px;
     }
     
     /* Success/Error messages */
     .stSuccess {
-        background: rgba(52,168,83,0.1);
+        background: rgba(52,168,83,0.1) !important;
         border: 1px solid #34a853;
         border-radius: 10px;
-        color: #137333;
+        color: #137333 !important;
     }
     
     .stError {
-        background: rgba(234,67,53,0.1);
+        background: rgba(234,67,53,0.1) !important;
         border: 1px solid #ea4335;
         border-radius: 10px;
-        color: #d33b2c;
+        color: #d33b2c !important;
+    }
+    
+    /* Override spinner */
+    .stSpinner > div {
+        color: #4285f4 !important;
+    }
+    
+    /* Force white background for all containers */
+    .block-container {
+        background-color: #ffffff !important;
+    }
+    
+    .stApp > div > div {
+        background-color: #ffffff !important;
     }
     
     /* Hide Streamlit branding */
